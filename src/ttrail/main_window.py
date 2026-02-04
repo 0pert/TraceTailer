@@ -1,0 +1,148 @@
+from PyQt6.QtCore import QSize, Qt, QTimer
+from PyQt6.QtWidgets import (
+    QMainWindow,
+    QStatusBar,
+    QFileDialog,
+    QPlainTextEdit,
+)
+from PyQt6.QtGui import (
+    QAction,
+    QIcon,
+)
+from pathlib import Path
+from highlighter import HighLighter
+from toolbar import ToolBar
+
+FILTER = "Text Files (*.txt, *.log);;All Files (*)"
+DIRECTORY = "C:\\TEMP"
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.filename = ""
+        self.is_loading = False
+
+        self.setWindowTitle("TraceTailer")
+        self.setMinimumSize(QSize(1200, 600))
+        self.setWindowIcon(QIcon('img/icon.png'))
+
+        self.content = QPlainTextEdit()
+        self.content.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.highlighter = HighLighter(self.content.document())
+        self.setCentralWidget(self.content)
+
+        # Top menu
+        self.menu = self.menuBar()
+        file_menu = self.menu.addMenu("&File")
+
+        button_action = QAction("📃 New", self)
+        button_action.setStatusTip("New file")
+        button_action.setShortcut("Ctrl+N")
+        button_action.triggered.connect(self.new_file)
+        file_menu.addAction(button_action)
+
+        button_action = QAction("📂 Open", self)
+        button_action.setStatusTip("Open file...")
+        button_action.setShortcut("Ctrl+O")
+        button_action.triggered.connect(self.open_file)
+        file_menu.addAction(button_action)
+
+        button_action = QAction("💾 Save", self)
+        button_action.setStatusTip("Save file")
+        button_action.setShortcut("Ctrl+S")
+        button_action.triggered.connect(self.save_file)
+        file_menu.addAction(button_action)
+
+        button_action = QAction("💾 Save as", self)
+        button_action.setStatusTip("Save as...")
+        button_action.triggered.connect(self.save_as)
+        file_menu.addAction(button_action)
+
+        self.setStatusBar(QStatusBar(self))
+
+        self.toolbar = ToolBar()
+        self.toolbar.open_btn.clicked.connect(self.open_file)
+        self.toolbar.profile_changed.connect(self.on_profile_changed)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.toolbar)
+
+        # Timer for debouncing
+        self.profile_timer = QTimer()
+        self.profile_timer.setSingleShot(True)
+        self.profile_timer.timeout.connect(self.do_rehighlight)
+
+    #### File handling functions
+    def new_file(self):
+        self.content.setPlainText("")
+        self.filename = ""
+
+    def open_file(self):
+        filename, filter = QFileDialog.getOpenFileName(
+            parent=None,
+            caption="Open File",
+            directory=DIRECTORY,
+            filter=FILTER,
+        )
+        if filename:
+            self.filename = filename
+            self.is_loading = True
+            self.highlighter.setDocument(None)
+            self.statusBar().showMessage("Loading file......")
+            with open(Path(self.filename), "r", encoding="UTF-8") as f:
+                data = f.read()
+
+            self.content.setPlainText(data)
+
+            QTimer.singleShot(100, self.reattach_highlighter)
+
+    def save_file(self):
+        if self.filename:
+            data = self.content.toPlainText()
+            with open(self.filename, "w", encoding="UTF-8") as f:
+                f.write(data)
+
+    def save_as(self):
+        filename, filter = QFileDialog.getSaveFileName(
+            parent=None,
+            caption="Save File",
+            directory=DIRECTORY,
+            filter=FILTER,
+        )
+        if filename:
+            with open(Path(filename), "w", encoding="UTF-8") as f:
+                f.write(self.content.toPlainText())
+
+    #### Highligtning functions
+    def on_profile_changed(self, profile_name):
+        """Update highlighting when profile changing"""
+        rules = self.toolbar.get_current_rules()
+        self.highlighter.update(rules)
+
+        # Short delay to change more rules at once
+        self.profile_timer.stop()
+        self.profile_timer.start(1000)
+
+    def do_rehighlight(self):
+        """Actual rehighlight after delay"""
+        self.statusBar().showMessage("Updating highlighting...")
+        QTimer.singleShot(10, self.finish_rehighlight)
+
+    def finish_rehighlight(self):
+        self.highlighter.rehighlight()
+        self.statusBar().showMessage("Finished!", 1000)
+
+    def reattach_highlighter(self):
+        """Reattach highlighter after opening file"""
+        self.highlighter.setDocument(self.content.document())
+        self.is_loading = False
+
+        # Show number of rows
+        line_count = self.content.document().blockCount()
+        if line_count > self.highlighter.max_blocks:
+            self.statusBar().showMessage(
+                f"File loaded ({line_count:,} rows). "
+                f"Highlighting limit set to first {self.highlighter.max_blocks:,} rows.",
+                5000,
+            )
+        else:
+            self.statusBar().showMessage(f"File loaded ({line_count:,} rows)", 2000)

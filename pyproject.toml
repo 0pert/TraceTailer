@@ -1,0 +1,13 @@
+[project]
+name = "ttrail"
+version = "0.1.0"
+author = "Oliver Broman"
+description = "Trace Trailer - Notepad highlighter"
+readme = "README.md"
+packages = [
+    { include = "ttrail", from = "src" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyqt6>=6.10.2",
+]
