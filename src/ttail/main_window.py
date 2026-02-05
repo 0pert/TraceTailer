@@ -13,7 +13,7 @@ from highlighter import HighLighter
 from toolbar import ToolBar
 from dialog_windows import AboutDialog
 
-FILTER = "Text Files (*.txt, *.log);;All Files (*)"
+FILTER = "Text Files (*.txt *.log);;All Files (*)"
 DIRECTORY = "C:\\TEMP"
 
 
