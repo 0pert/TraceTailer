@@ -71,6 +71,9 @@ class MainWindow(QMainWindow):
         self.profile_timer.setSingleShot(True)
         self.profile_timer.timeout.connect(self.do_rehighlight)
 
+        self.content.cursorPositionChanged.connect(self.update_info)
+        self.update_info()
+
     #### File handling functions
     def new_file(self):
         self.content.setPlainText("")
@@ -94,6 +97,7 @@ class MainWindow(QMainWindow):
             self.content.setPlainText(data)
 
             QTimer.singleShot(100, self.reattach_highlighter)
+            self.update_info()
 
     def save_file(self):
         if self.filename:
@@ -146,3 +150,13 @@ class MainWindow(QMainWindow):
             )
         else:
             self.statusBar().showMessage(f"File loaded ({line_count:,} rows)", 2000)
+
+
+    def update_info(self):
+        cursor_position = self.content.textCursor()
+        line = cursor_position.blockNumber() + 1
+        column = cursor_position.columnNumber() + 1
+        total_lines = self.content.document().blockCount()
+
+        info = f"File: {self.filename}\nRow: {line}/{total_lines} | Column: {column}"
+        self.toolbar.info.setText(info)

@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QLabel,
 )
 from PyQt6.QtGui import (
     QColor,
@@ -37,10 +38,13 @@ class ToolBar(QDockWidget):
         self.dropdown_choice("Standard")
         self.sidebar_list.itemChanged.connect(self.rule_toggled)
 
+        self.info = QLabel()
+
         layout = QVBoxLayout()
         layout.addWidget(self.open_btn)
         layout.addWidget(self.dropdown)
         layout.addWidget(self.sidebar_list)
+        layout.addWidget(self.info)
 
         content = QWidget()
         content.setLayout(layout)
