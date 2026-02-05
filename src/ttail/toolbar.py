@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QLabel,
 )
 from PyQt6.QtGui import (
     QColor,

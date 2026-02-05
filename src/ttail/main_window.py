@@ -7,11 +7,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import (
     QAction,
-    QIcon,
 )
 from pathlib import Path
 from highlighter import HighLighter
 from toolbar import ToolBar
+from dialog_windows import AboutDialog
 
 FILTER = "Text Files (*.txt, *.log);;All Files (*)"
 DIRECTORY = "C:\\TEMP"
@@ -25,7 +25,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("TraceTailer")
         self.setMinimumSize(QSize(1200, 600))
-        self.setWindowIcon(QIcon('img/icon.png'))
+        # self.setWindowIcon(QIcon('img/icon.png'))
 
         self.content = QPlainTextEdit()
         self.content.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
@@ -37,13 +37,13 @@ class MainWindow(QMainWindow):
         file_menu = self.menu.addMenu("&File")
 
         button_action = QAction("📃 New", self)
-        button_action.setStatusTip("New file")
+        button_action.setStatusTip("Create new file")
         button_action.setShortcut("Ctrl+N")
         button_action.triggered.connect(self.new_file)
         file_menu.addAction(button_action)
 
         button_action = QAction("📂 Open", self)
-        button_action.setStatusTip("Open file...")
+        button_action.setStatusTip("Open existing file...")
         button_action.setShortcut("Ctrl+O")
         button_action.triggered.connect(self.open_file)
         file_menu.addAction(button_action)
@@ -55,9 +55,19 @@ class MainWindow(QMainWindow):
         file_menu.addAction(button_action)
 
         button_action = QAction("💾 Save as", self)
-        button_action.setStatusTip("Save as...")
+        button_action.setStatusTip("Save as new file")
         button_action.triggered.connect(self.save_as)
         file_menu.addAction(button_action)
+
+        help_menu = self.menu.addMenu("&Help")
+
+        # button_action = QAction("❔ Help", self)
+        # button_action.triggered.connect(self.help)
+        # help_menu.addAction(button_action)
+
+        button_action = QAction("ℹ️ About", self)
+        button_action.triggered.connect(self.about)
+        help_menu.addAction(button_action)
 
         self.setStatusBar(QStatusBar(self))
 
@@ -104,6 +114,8 @@ class MainWindow(QMainWindow):
             data = self.content.toPlainText()
             with open(self.filename, "w", encoding="UTF-8") as f:
                 f.write(data)
+        else:
+            self.save_as()
 
     def save_as(self):
         filename, filter = QFileDialog.getSaveFileName(
@@ -115,6 +127,11 @@ class MainWindow(QMainWindow):
         if filename:
             with open(Path(filename), "w", encoding="UTF-8") as f:
                 f.write(self.content.toPlainText())
+
+    def about(self):
+        print("ABOUT")
+        about = AboutDialog(self)
+        about.exec()
 
     #### Highligtning functions
     def on_profile_changed(self, profile_name):
@@ -150,7 +167,6 @@ class MainWindow(QMainWindow):
             )
         else:
             self.statusBar().showMessage(f"File loaded ({line_count:,} rows)", 2000)
-
 
     def update_info(self):
         cursor_position = self.content.textCursor()
