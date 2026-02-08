@@ -9,12 +9,12 @@ from PyQt6.QtGui import (
     QAction,
 )
 from pathlib import Path
-from highlighter import HighLighter
-from toolbar import ToolBar
-from dialog_windows import AboutDialog
 
-FILTER = "Text Files (*.txt *.log);;All Files (*)"
-DIRECTORY = "C:\\TEMP"
+from src.ttail.highlighter import HighLighter
+from src.ttail.toolbar import ToolBar
+from src.ttail.dialog_windows import AboutDialog
+
+from src.ttail.settings import FILE_DIALOG_DIR, FILTER
 
 
 class MainWindow(QMainWindow):
@@ -93,7 +93,7 @@ class MainWindow(QMainWindow):
         filename, filter = QFileDialog.getOpenFileName(
             parent=None,
             caption="Open File",
-            directory=DIRECTORY,
+            directory=FILE_DIALOG_DIR,
             filter=FILTER,
         )
         if filename:
@@ -121,7 +121,7 @@ class MainWindow(QMainWindow):
         filename, filter = QFileDialog.getSaveFileName(
             parent=None,
             caption="Save File",
-            directory=DIRECTORY,
+            directory=FILE_DIALOG_DIR,
             filter=FILTER,
         )
         if filename:
@@ -129,7 +129,6 @@ class MainWindow(QMainWindow):
                 f.write(self.content.toPlainText())
 
     def about(self):
-        print("ABOUT")
         about = AboutDialog(self)
         about.exec()
 

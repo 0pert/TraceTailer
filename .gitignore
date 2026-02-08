@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+output
 
 TraceTailer.spec
 
@@ -16,3 +17,4 @@ TraceTailer.spec
 
 # 
 ToDo.txt
+test.py

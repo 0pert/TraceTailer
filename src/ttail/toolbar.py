@@ -12,7 +12,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import (
     QColor,
 )
-from profiles import PROFILES
+
+from src.ttail.profile_editor import Profiles
+from src.ttail.profile_editor import ProfileEditor
 
 
 class ToolBar(QDockWidget):
@@ -25,23 +27,24 @@ class ToolBar(QDockWidget):
         self.open_btn = QPushButton("📂Open")
         self.open_btn.setStatusTip("Open file")
 
+        self.edit_profiles_btn = QPushButton("🗄️Profile editor")
+        self.edit_profiles_btn.clicked.connect(self.open_edit_profiles)
+
         self.dropdown_label = QLabel("Profile:")
-        self.dropdown = QComboBox()
-        profile_list = []
-        for i, _ in PROFILES.items():
-            profile_list.append(i)
-        self.dropdown.addItems(profile_list)
-        self.dropdown.currentTextChanged.connect(self.dropdown_choice)
+        self.profile_dropdown = QComboBox()
+        self.read_profiles()
+        self.profile_dropdown.currentTextChanged.connect(self.dropdown_choice)
 
         self.sidebar_list = QListWidget()
-        self.dropdown_choice("Standard")
+        self.dropdown_choice("Default")
         self.sidebar_list.itemChanged.connect(self.rule_toggled)
 
         self.info = QLabel()
 
         layout = QVBoxLayout()
         layout.addWidget(self.open_btn)
-        layout.addWidget(self.dropdown)
+        layout.addWidget(self.edit_profiles_btn)
+        layout.addWidget(self.profile_dropdown)
         layout.addWidget(self.sidebar_list)
         layout.addWidget(self.info)
 
@@ -58,10 +61,24 @@ class ToolBar(QDockWidget):
             Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
         )
 
+    def read_profiles(self):
+        self.profile_dropdown.clear()
+        self.profiles = Profiles()
+        self.profile_list = []
+        for i, _ in self.profiles.profiles.items():
+            self.profile_list.append(i)
+        self.profile_dropdown.addItems(self.profile_list)
+
+    def open_edit_profiles(self):
+        dialog = ProfileEditor()
+        dialog.exec()
+        self.read_profiles()
+
     def dropdown_choice(self, text: str):
         self.sidebar_list.clear()
-
-        for rule in PROFILES[text]:
+        if not text:
+            return
+        for rule in self.profiles.profiles[text]:
             item = QListWidgetItem(f"● {rule['name']}")
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(
@@ -80,7 +97,7 @@ class ToolBar(QDockWidget):
 
     def rule_toggled(self, item):
         """Handle rule toggle"""
-        current_profile = self.dropdown.currentText()
+        current_profile = self.profile_dropdown.currentText()
         try:
             self.profile_changed.emit(current_profile)
         except Exception:
@@ -88,9 +105,9 @@ class ToolBar(QDockWidget):
 
     def get_current_rules(self):
         """Get current rules status"""
-        current_profile = self.dropdown.currentText()
+        current_profile = self.profile_dropdown.currentText()
         rules = []
-        for idx, rule in enumerate(PROFILES[current_profile]):
+        for idx, rule in enumerate(self.profiles.profiles[current_profile]):
             item = self.sidebar_list.item(idx)
             rule_copy = rule.copy()
             if item:

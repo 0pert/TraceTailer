@@ -5,18 +5,20 @@ from PyQt6.QtGui import (
     QSyntaxHighlighter,
     QTextCharFormat,
 )
-from profiles import PROFILES
+from src.ttail.profile_editor import Profiles
 
 
 class HighLighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.profiles = Profiles().load_profiles()
+
         self.highlighting_rules = []
         self.max_blocks = 1000000
         self.current_block_count = 0
         # Create format for patterns
-        for pattern in PROFILES["Standard"]:
+        for pattern in self.profiles["Default"]:
             format = QTextCharFormat()
             format.setForeground(QColor(pattern["color"]))
             pattern = QRegularExpression(pattern["expression"])

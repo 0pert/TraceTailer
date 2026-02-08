@@ -47,7 +47,7 @@ wheels = [
 
 [[package]]
 name = "ttail"
-version = "0.1.2"
+version = "0.2.2"
 source = { virtual = "." }
 dependencies = [
     { name = "pyqt6" },

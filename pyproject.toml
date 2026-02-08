@@ -1,6 +1,6 @@
 [project]
 name = "ttail"
-version = "0.1.2"
+version = "0.2.2"
 author = "Oliver Broman"
 description = "Trace Tailer - Notepad highlighter"
 readme = "README.md"
