@@ -48,6 +48,7 @@ A powerful desktop application for viewing trace/log files with customizable syn
 
 ## Future features
 
+- 🔤 **Change font / font-size**
 - 🔍 **Search functionality** with regex support
 - 🔄 **Real-time tail mode** - follow files as they update (like `tail -f`)
 - 📄 **Multiple files opened simultaneously**
