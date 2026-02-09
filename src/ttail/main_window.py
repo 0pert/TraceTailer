@@ -56,6 +56,7 @@ class MainWindow(QMainWindow):
 
         button_action = QAction("💾 Save as", self)
         button_action.setStatusTip("Save as new file")
+        button_action.setShortcut("Ctrl+Shift+S")
         button_action.triggered.connect(self.save_as)
         file_menu.addAction(button_action)
 
