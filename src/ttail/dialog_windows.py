@@ -1,7 +1,16 @@
-from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import (
+    QDialog,
+    QSpinBox,
+    QFontComboBox,
+    QDialogButtonBox,
+    QVBoxLayout,
+    QLabel,
+    QGroupBox,
+    QHBoxLayout,
+)
 from PyQt6.QtCore import Qt
+
 from src.ttail.settings import PICTURE
-# PICTURE = "img/TraceTailer.png"
 
 
 class AboutDialog(QDialog):
@@ -35,3 +44,58 @@ class AboutDialog(QDialog):
         layout.addWidget(label)
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+        self.setWindowTitle("Settings")
+
+        QBtn = (
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        current_settings = self.parent.settings.load_font_settings()
+        layout = QVBoxLayout()
+
+        font_group = QGroupBox("Font")
+        font_layout = QHBoxLayout()
+
+        self.combobox = QFontComboBox()
+        self.combobox.setCurrentText(current_settings[0])
+        self.combobox.currentFontChanged.connect(self.test)
+        font_layout.addWidget(self.combobox)
+
+
+        font_layout.addWidget(QLabel("Size:"))
+        self.font_size = QSpinBox()
+        self.font_size.setValue(current_settings[1])
+        self.font_size.valueChanged.connect(self.test)
+        font_layout.addWidget(self.font_size)
+
+
+
+        font_group.setLayout(font_layout)
+        layout.addWidget(font_group)
+        layout.addWidget(self.buttonBox)
+        self.setLayout(layout)
+
+    def accept(self):
+        self.parent.font_family = self.combobox.currentText()
+        self.parent.font_size = self.font_size.value()
+        self.parent.set_font()
+        self.parent.settings.save_font_settings(self.font_size.value(), self.combobox.currentText())
+        return super().accept()
+
+    def reject(self):
+        self.parent.set_font()
+        return super().reject()
+
+    def test(self):
+        font_info = [self.combobox.currentText(), self.font_size.value()]
+        self.parent.set_font(font_info)

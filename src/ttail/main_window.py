@@ -7,13 +7,15 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import (
     QAction,
+    QFontDatabase,
+    QFont
 )
 from pathlib import Path
 
 from src.ttail.highlighter import HighLighter
 from src.ttail.toolbar import ToolBar
-from src.ttail.dialog_windows import AboutDialog
-
+from src.ttail.dialog_windows import AboutDialog, SettingsDialog
+from src.ttail.app_config import AppConfig
 from src.ttail.settings import FILE_DIALOG_DIR, FILTER
 
 
@@ -23,6 +25,8 @@ class MainWindow(QMainWindow):
         self.filename = ""
         self.is_loading = False
 
+        self.settings = AppConfig()
+
         self.setWindowTitle("TraceTailer")
         self.setMinimumSize(QSize(1200, 600))
         # self.setWindowIcon(QIcon('img/icon.png'))
@@ -31,6 +35,8 @@ class MainWindow(QMainWindow):
         self.content.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.highlighter = HighLighter(self.content.document())
         self.setCentralWidget(self.content)
+
+        self.set_font(self.settings.load_font_settings())
 
         # Top menu
         self.menu = self.menuBar()
@@ -60,6 +66,12 @@ class MainWindow(QMainWindow):
         button_action.triggered.connect(self.save_as)
         file_menu.addAction(button_action)
 
+        button_action = QAction("⚙️ Settings", self)
+        # button_action.setStatusTip("Save as new file")
+        # button_action.setShortcut("Ctrl+Shift+S")
+        button_action.triggered.connect(self.show_settings)
+        file_menu.addAction(button_action)
+
         help_menu = self.menu.addMenu("&Help")
 
         # button_action = QAction("❔ Help", self)
@@ -84,6 +96,14 @@ class MainWindow(QMainWindow):
 
         self.content.cursorPositionChanged.connect(self.update_info)
         self.update_info()
+
+    def set_font(self, info: list=None):
+        current_settings = self.settings.load_font_settings()
+        font = QFont(current_settings[0], current_settings[1])
+        if info:
+            font = QFont(info[0], info[1])   
+ 
+        self.content.setFont(font)
 
     #### File handling functions
     def new_file(self):
@@ -132,6 +152,10 @@ class MainWindow(QMainWindow):
     def about(self):
         about = AboutDialog(self)
         about.exec()
+
+    def show_settings(self):
+        settings = SettingsDialog(self)
+        settings.exec()
 
     #### Highligtning functions
     def on_profile_changed(self, profile_name):
