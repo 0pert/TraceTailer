@@ -68,17 +68,14 @@ class SettingsDialog(QDialog):
 
         self.combobox = QFontComboBox()
         self.combobox.setCurrentText(current_settings[0])
-        self.combobox.currentFontChanged.connect(self.test)
+        self.combobox.currentFontChanged.connect(self.on_change)
         font_layout.addWidget(self.combobox)
-
 
         font_layout.addWidget(QLabel("Size:"))
         self.font_size = QSpinBox()
         self.font_size.setValue(current_settings[1])
-        self.font_size.valueChanged.connect(self.test)
+        self.font_size.valueChanged.connect(self.on_change)
         font_layout.addWidget(self.font_size)
-
-
 
         font_group.setLayout(font_layout)
         layout.addWidget(font_group)
@@ -86,16 +83,16 @@ class SettingsDialog(QDialog):
         self.setLayout(layout)
 
     def accept(self):
-        self.parent.font_family = self.combobox.currentText()
-        self.parent.font_size = self.font_size.value()
+        self.parent.settings.save_font_settings(
+            self.font_size.value(), self.combobox.currentText()
+        )
         self.parent.set_font()
-        self.parent.settings.save_font_settings(self.font_size.value(), self.combobox.currentText())
         return super().accept()
 
     def reject(self):
         self.parent.set_font()
         return super().reject()
 
-    def test(self):
+    def on_change(self):
         font_info = [self.combobox.currentText(), self.font_size.value()]
         self.parent.set_font(font_info)

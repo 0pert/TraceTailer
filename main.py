@@ -7,7 +7,6 @@ from src.ttail.main_window import MainWindow
 from src.ttail.settings import ICON
 
 
-
 def main():
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(str(ICON)))

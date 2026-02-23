@@ -11,7 +11,7 @@ class AppConfig:
         )
         self.config_path = Path(config_dir) / "TraceTailer"
         self.config_path.mkdir(parents=True, exist_ok=True)
-        print(self.config_path)
+        
     def save_font_settings(self, font_size, font_name):
         self.settings.setValue("font-size", font_size)
         self.settings.setValue("font-name", font_name)

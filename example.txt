@@ -1,0 +1,54 @@
+[09/02/26 14:23:45.123] Application started successfully
+[09/02/26 14:23:45.456] Loading configuration from config.xml
+[09/02/26 14:23:45.789] INFO: Database connection established
+
+<configuration>
+    <database host="localhost" port="5432" name="production_db"/>
+    <logging level="debug" output="file"/>
+    <features enabled="true" experimental="false"/>
+</configuration>
+
+[09/02/26 14:23:46.012] Processing request {A7B3C4D5-E6F7-8901-2345-6789ABCDEF01}
+[09/02/26 14:23:46.234] SUCCESS: User authentication complete
+[09/02/26 14:23:46.456] INFO: Loading user preferences
+
+<user id="12345" name="John Doe" role="administrator">
+    <preferences>
+        <theme value="dark"/>
+        <language value="en-US"/>
+    </preferences>
+</user>
+
+[09/02/26 14:23:47.001] WARNING: Cache size approaching limit (85% full)
+[09/02/26 14:23:47.123] CAUTION: High memory usage detected
+[09/02/26 14:23:47.456] Processing batch job {B1C2D3E4-F5A6-7B8C-9D0E-1F2A3B4C5D6E}
+
+<batch id="batch_001" status="running">
+    <job type="export" priority="high"/>
+    <job type="cleanup" priority="low"/>
+</batch>
+
+[09/02/26 14:23:48.789] ERROR: Failed to connect to external API
+[09/02/26 14:23:48.890] EXCEPTION: TimeoutException in module HttpClient
+[09/02/26 14:23:49.001] CRITICAL: Unable to process payment transaction
+[09/02/26 14:23:49.123] FAIL: Validation failed for user input
+
+<error code="500" severity="critical">
+    <message>Internal server error occurred</message>
+    <timestamp>2026-02-09T14:23:49.123Z</timestamp>
+    <details exception="NullReferenceException" method="ProcessPayment"/>
+</error>
+
+[09/02/26 14:23:50.234] Attempting automatic recovery...
+[09/02/26 14:23:50.456] SUCCESS: Fallback connection established
+[09/02/26 14:23:50.678] OK: Transaction rolled back successfully
+[09/02/26 14:23:50.890] PASS: System integrity check complete
+
+<response status="ok" guid="{C3D4E5F6-A7B8-9C0D-1E2F-3A4B5C6D7E8F}">
+    <data count="150" format="json"/>
+    <metadata timestamp="2026-02-09T14:23:50.890Z" version="2.1"/>
+</response>
+
+[09/02/26 14:23:51.001] INFO: Background tasks completed
+[09/02/26 14:23:51.123] System running normally
+[09/02/26 14:23:51.456] Next scheduled maintenance: [10/02/26 02:00:00.000]
