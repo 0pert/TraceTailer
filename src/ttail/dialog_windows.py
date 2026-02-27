@@ -33,7 +33,7 @@ class AboutDialog(QDialog):
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setText(f"""
     <img src="{self.parent.settings.PICTURE}" alt="TraceTailer logo" width="200" height="200"><br>
-    <span style='font-size: 9pt;'>v0.2.2</span><br><br>
+    <span style='font-size: 9pt;'>v0.3.2</span><br><br>
     <span style='font-size: 11pt;'>Kontakt: <a href='mailto:oliver@bytesofit.se'>oliver@bytesofit.se</a><br>
     GitHub: <a href='https://github.com/0pert/TraceTailer.git'>github.com/Opert/TraceTailer</a><br><br>
     © 2026 Oliver Broman<br></span>
