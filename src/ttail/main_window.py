@@ -222,16 +222,6 @@ class MainWindow(QMainWindow):
         highlight_format.setBackground(QColor("#FFFF00"))
         highlight_format.setForeground(QColor("#000000"))
 
-        # Hämta sök-alternativ från din search dialog
-        # case_sensitive = False
-        # if self.search_dialog and hasattr(self.search_dialog, 'case_sensitive'):
-        #     case_sensitive = self.search_dialog.case_sensitive.isChecked()
-
-        # # Sätt upp sökflaggor
-        # flags = QTextDocument.FindFlag(0)
-        # if case_sensitive:
-        #     flags |= QTextDocument.FindFlag.FindCaseSensitively
-
         # -- Find all -----------------------------------
         cursor = QTextCursor(self.content.document())
         cursor.movePosition(QTextCursor.MoveOperation.Start)
