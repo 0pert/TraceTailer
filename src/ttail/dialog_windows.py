@@ -18,6 +18,7 @@ class AboutDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("About")
+        self.parent = parent
 
         QBtn = (
             QDialogButtonBox.StandardButton.Ok  # | QDialogButtonBox.StandardButton.Cancel
