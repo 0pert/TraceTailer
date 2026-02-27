@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from src.ttail.settings import PICTURE
 from src.ttail.color import Color
 
 
@@ -32,7 +31,7 @@ class AboutDialog(QDialog):
         label = QLabel()
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setText(f"""
-    <img src="{PICTURE}" alt="TraceTailer logo" width="200" height="200"><br>
+    <img src="{self.parent.settings.PICTURE}" alt="TraceTailer logo" width="200" height="200"><br>
     <span style='font-size: 9pt;'>v0.2.2</span><br><br>
     <span style='font-size: 11pt;'>Kontakt: <a href='mailto:oliver@bytesofit.se'>oliver@bytesofit.se</a><br>
     GitHub: <a href='https://github.com/0pert/TraceTailer.git'>github.com/Opert/TraceTailer</a><br><br>

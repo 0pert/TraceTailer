@@ -28,7 +28,6 @@ from src.ttail.highlighter import HighLighter
 from src.ttail.toolbar import ToolBar
 from src.ttail.dialog_windows import AboutDialog, SettingsDialog
 from src.ttail.app_config import AppConfig
-from src.ttail.settings import FILE_DIALOG_DIR, FILTER
 
 
 class MainWindow(QMainWindow):
@@ -388,8 +387,8 @@ class MainWindow(QMainWindow):
         filename, filter = QFileDialog.getOpenFileName(
             parent=None,
             caption="Open File",
-            directory=FILE_DIALOG_DIR,
-            filter=FILTER,
+            directory=self.settings.FILE_DIALOG_DIR,
+            filter=self.settings.FILTER,
         )
         if filename:
             self.filename = filename
@@ -416,8 +415,8 @@ class MainWindow(QMainWindow):
         filename, filter = QFileDialog.getSaveFileName(
             parent=None,
             caption="Save File",
-            directory=FILE_DIALOG_DIR,
-            filter=FILTER,
+            directory=self.settings.FILE_DIALOG_DIR,
+            filter=self.settings.FILTER,
         )
         if filename:
             with open(Path(filename), "w", encoding="UTF-8") as f:

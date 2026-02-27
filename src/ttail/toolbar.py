@@ -13,8 +13,7 @@ from PyQt6.QtGui import (
     QColor,
 )
 
-from src.ttail.profile_editor import Profiles
-from src.ttail.profile_editor import ProfileEditor
+from src.ttail.profile_editor import Profiles, ProfileEditor
 
 
 class ToolBar(QDockWidget):

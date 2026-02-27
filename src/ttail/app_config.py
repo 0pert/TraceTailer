@@ -1,8 +1,16 @@
 from PyQt6.QtCore import QStandardPaths, QSettings
 from pathlib import Path
+import shutil
 
 
 class AppConfig:
+    ROOT_DIR = Path.cwd()
+    SAVED_PROFILES = ROOT_DIR / "profile.json"
+    FILE_DIALOG_DIR = ""  # "C:\\"
+    FILTER = "Text Files (*.txt *.log);;All Files (*)"
+    ICON = ROOT_DIR / "img/TraceTailer_icon.ico"
+    PICTURE = ROOT_DIR / "img/TraceTailer.png"
+
     def __init__(self):
         self.settings = QSettings("BytesOfIT", "TraceTailer")
 
@@ -11,6 +19,10 @@ class AppConfig:
         )
         self.config_path = Path(config_dir) / "TraceTailer"
         self.config_path.mkdir(parents=True, exist_ok=True)
+
+        if not self.SAVED_PROFILES.exists():
+            shutil.copy(self.ROOT_DIR / "src/ttail/default_profile.json", self.ROOT_DIR / "profile.json")
+
 
     def save_font_settings(self, font_size, font_name):
         self.settings.setValue("font-size", font_size)
