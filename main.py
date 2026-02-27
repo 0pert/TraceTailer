@@ -9,7 +9,8 @@ from src.ttail.app_config import AppConfig
 
 def main():
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon(str(AppConfig().ICON)))
+    settings = AppConfig()
+    app.setWindowIcon(QIcon(str(settings.tracetailer_icon)))
     window = MainWindow()
     window.show()
     app.exec()

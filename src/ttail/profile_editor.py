@@ -1,3 +1,5 @@
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QLabel,
@@ -17,7 +19,9 @@ from PyQt6.QtGui import (
     QColor,
 )
 import json
+import os
 from src.ttail.color import Color
+from src.ttail.app_config import AppConfig
 
 
 class ProfileEditor(QDialog):
@@ -71,6 +75,14 @@ class ProfileEditor(QDialog):
         list_buttons.addWidget(self.add_pattern_btn)
         list_buttons.addWidget(self.remove_pattern_btn)
         left_layout.addLayout(list_buttons)
+
+        settings = AppConfig()
+        profile_info = QLabel(f"Profiles stored: <a href='file:///{settings.profile_file}'>{settings.profile_file}</a>")
+        profile_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        profile_info.linkActivated.connect(lambda: QDesktopServices.openUrl(
+            QUrl.fromLocalFile(os.path.dirname(settings.profile_file))
+        ))
+        left_layout.addWidget(profile_info)
 
         main_layout.addLayout(left_layout, 1)
 
@@ -263,15 +275,16 @@ class ProfileEditor(QDialog):
 
 class Profiles:
     def __init__(self):
+        self.settings = AppConfig()
         self.profiles = self.load_profiles()
 
     def get_profile(self, profile):
         return self.profiles[profile]
 
     def load_profiles(self):
-        with open("profile.json", "r", encoding="utf-8") as f:
+        with open(self.settings.profile_file, "r", encoding="utf-8") as f:
             return json.load(f)
 
     def save_profiles(self):
-        with open("profile.json", "w", encoding="utf-8") as f:
+        with open(self.settings.profile_file, "w", encoding="utf-8") as f:
             json.dump(self.profiles, f, indent=2, ensure_ascii=False)
