@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QFormLayout,
     QPushButton,
-    QColorDialog,
     QCheckBox,
     QMessageBox,
 )
@@ -18,7 +17,7 @@ from PyQt6.QtGui import (
     QColor,
 )
 import json
-from src.ttail.settings import SAVED_PROFILES
+from src.ttail.color import Color
 
 
 class ProfileEditor(QDialog):
@@ -32,7 +31,7 @@ class ProfileEditor(QDialog):
 
         layout = QVBoxLayout()
 
-        # --- Profile ---
+        # -- Profile -----------------------------------------------------------
         profile_group = QGroupBox("Profile")
         profile_layout = QHBoxLayout()
 
@@ -56,7 +55,7 @@ class ProfileEditor(QDialog):
 
         main_layout = QHBoxLayout()
 
-        # --- Pattern list ---
+        # -- Pattern list ------------------------------------------------
         left_layout = QVBoxLayout()
         left_layout.addWidget(QLabel("Patterns:"))
 
@@ -75,7 +74,7 @@ class ProfileEditor(QDialog):
 
         main_layout.addLayout(left_layout, 1)
 
-        # --- Detail information ---
+        # -- Detail information ----------------------------------------------
         right_group = QGroupBox("Details")
         right_layout = QFormLayout()
 
@@ -87,20 +86,12 @@ class ProfileEditor(QDialog):
         self.expression_edit.textChanged.connect(self.on_detail_changed)
         right_layout.addRow("Regex:", self.expression_edit)
 
-        # --- Color choice ---
-        color_layout = QHBoxLayout()
-        self.color_edit = QLineEdit()
-        self.color_edit.textChanged.connect(self.on_detail_changed)
-        self.color_preview = QLabel("    ")
-        self.color_preview.setStyleSheet("border: 1px solid black;")
-        self.color_preview.setFixedSize(30, 20)
-        self.color_btn = QPushButton("Choose...")
-        self.color_btn.clicked.connect(self.choose_color)
-        color_layout.addWidget(self.color_edit, 1)
-        color_layout.addWidget(self.color_preview)
-        color_layout.addWidget(self.color_btn)
-        right_layout.addRow("Color:", color_layout)
+        # -- Color choice ------------------------------------------------
+        self.color = Color()
+        self.color.color_edit.textChanged.connect(self.on_detail_changed)
+        right_layout.addRow("Color:", self.color.color_layout)
 
+        # -- Checkboxes ---------------------------------------------------
         self.bold_checkbox = QCheckBox("Bold")
         self.bold_checkbox.stateChanged.connect(self.on_detail_changed)
         right_layout.addRow("", self.bold_checkbox)
@@ -114,7 +105,7 @@ class ProfileEditor(QDialog):
 
         layout.addLayout(main_layout)
 
-        # --- Bottom ---
+        # -- Bottom -------------------------------------------------------
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
@@ -146,7 +137,7 @@ class ProfileEditor(QDialog):
         pattern = self.current_patterns[current_row]
         pattern["name"] = self.name_edit.text()
         pattern["expression"] = self.expression_edit.text()
-        pattern["color"] = self.color_edit.text()
+        pattern["color"] = self.color.color_edit.text()
         pattern["bold"] = self.bold_checkbox.isChecked()
         pattern["enabled"] = self.enabled_checkbox.isChecked()
 
@@ -154,10 +145,9 @@ class ProfileEditor(QDialog):
         item.setText(pattern["name"])
         item.setForeground(QColor(pattern["color"]))
 
-        self.update_color_preview(pattern["color"])
+        self.color.update_color_preview(pattern["color"])
 
     def save_all(self):
-        # print(self.profiles.profiles)
         self.profiles.save_profiles()
         QMessageBox.information(self, "Saved", "Profile saved successfully!")
 
@@ -176,7 +166,6 @@ class ProfileEditor(QDialog):
         for pattern in self.current_patterns:
             item = QListWidgetItem(pattern["name"])
 
-            # Sätt färg på listan för att visa mönstrets färg
             color = QColor(pattern["color"])
             item.setForeground(color)
 
@@ -190,7 +179,7 @@ class ProfileEditor(QDialog):
         if row < 0 or row >= len(self.current_patterns):
             self.name_edit.clear()
             self.expression_edit.clear()
-            self.color_edit.clear()
+            self.color.color_edit.clear()
             self.bold_checkbox.setChecked(False)
             self.enabled_checkbox.setChecked(True)
             return
@@ -199,20 +188,20 @@ class ProfileEditor(QDialog):
 
         self.name_edit.blockSignals(True)
         self.expression_edit.blockSignals(True)
-        self.color_edit.blockSignals(True)
+        self.color.color_edit.blockSignals(True)
         self.bold_checkbox.blockSignals(True)
         self.enabled_checkbox.blockSignals(True)
 
         self.name_edit.setText(pattern["name"])
         self.expression_edit.setText(pattern["expression"])
-        self.color_edit.setText(pattern["color"])
-        self.update_color_preview(pattern["color"])
+        self.color.color_edit.setText(pattern["color"])
+        self.color.update_color_preview(pattern["color"])
         self.bold_checkbox.setChecked(pattern.get("bold", False))
         self.enabled_checkbox.setChecked(pattern.get("enabled", True))
 
         self.name_edit.blockSignals(False)
         self.expression_edit.blockSignals(False)
-        self.color_edit.blockSignals(False)
+        self.color.color_edit.blockSignals(False)
         self.bold_checkbox.blockSignals(False)
         self.enabled_checkbox.blockSignals(False)
 
@@ -270,21 +259,6 @@ class ProfileEditor(QDialog):
         if reply == QMessageBox.StandardButton.Yes:
             del self.current_patterns[current_row]
             self.refresh_pattern_list()
-
-    def choose_color(self):
-        """Öppna färgväljare"""
-        current_color = QColor(self.color_edit.text())
-        color = QColorDialog.getColor(current_color, self, "Choose Color")
-
-        if color.isValid():
-            self.color_edit.setText(color.name())
-            self.update_color_preview(color.name())
-
-    def update_color_preview(self, color_hex):
-        """Uppdatera färgförhandsvisning"""
-        self.color_preview.setStyleSheet(
-            f"background-color: {color_hex}; border: 1px solid black;"
-        )
 
 
 class Profiles:

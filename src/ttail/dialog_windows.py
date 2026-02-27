@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 from src.ttail.settings import PICTURE
+from src.ttail.color import Color
 
 
 class AboutDialog(QDialog):
@@ -60,24 +61,50 @@ class SettingsDialog(QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-        current_settings = self.parent.settings.load_font_settings()
+        current_font_settings = self.parent.settings.load_font_settings()
+        current_style_settings = self.parent.settings.load_style_settings()
         layout = QVBoxLayout()
 
+        # -- Font settings -----------------------------------------
         font_group = QGroupBox("Font")
         font_layout = QHBoxLayout()
 
         self.combobox = QFontComboBox()
-        self.combobox.setCurrentText(current_settings[0])
+        self.combobox.setCurrentText(current_font_settings[0])
         self.combobox.currentFontChanged.connect(self.on_change)
         font_layout.addWidget(self.combobox)
 
         font_layout.addWidget(QLabel("Size:"))
         self.font_size = QSpinBox()
-        self.font_size.setValue(current_settings[1])
+        self.font_size.setValue(current_font_settings[1])
         self.font_size.valueChanged.connect(self.on_change)
         font_layout.addWidget(self.font_size)
 
         font_group.setLayout(font_layout)
+
+        # -- Style settings -----------------------------------------
+        style_group = QGroupBox("Style")
+        style_layout = QVBoxLayout()
+
+        style_layout.addWidget(QLabel("Background color:"))
+        self.bg_color = Color()
+        style_layout.addLayout(self.bg_color.color_layout)
+        self.bg_color.color_edit.setText(current_style_settings[1])
+        self.bg_color.update_color_preview(current_style_settings[1])
+        self.bg_color.color_edit.textChanged.connect(self.on_change)
+
+        style_layout.addWidget(QLabel("Text color:"))
+        self.text_color = Color()
+        style_layout.addLayout(self.text_color.color_layout)
+        self.text_color.color_edit.setText(current_style_settings[0])
+        self.text_color.update_color_preview(current_style_settings[0])
+        self.text_color.color_edit.textChanged.connect(self.on_change)
+
+        style_layout.addWidget(QLabel("Standard text color:"))
+
+        style_group.setLayout(style_layout)
+
+        layout.addWidget(style_group)
         layout.addWidget(font_group)
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
@@ -86,13 +113,24 @@ class SettingsDialog(QDialog):
         self.parent.settings.save_font_settings(
             self.font_size.value(), self.combobox.currentText()
         )
+        self.parent.settings.save_style_settings(
+            self.text_color.color_edit.text(), self.bg_color.color_edit.text()
+        )
         self.parent.set_font()
+        self.parent.set_palette()
         return super().accept()
 
     def reject(self):
         self.parent.set_font()
+        self.parent.set_palette()
         return super().reject()
 
     def on_change(self):
         font_info = [self.combobox.currentText(), self.font_size.value()]
         self.parent.set_font(font_info)
+
+        style_info = [
+            self.text_color.color_edit.text(),
+            self.bg_color.color_edit.text(),
+        ]
+        self.parent.set_palette(style_info)

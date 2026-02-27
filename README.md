@@ -42,13 +42,14 @@ A powerful desktop application for viewing trace/log files with customizable syn
 - [PyQt6 (riverbankcomputing)](https://www.riverbankcomputing.com/software/pyqt/)
 - [pypi.org](https://pypi.org/project/PyQt6/)
 - Inspired by classic Unix `tail` command
+
 ---
 
 **Note:** This is an early version.
 
 ## Future features
 
-- 🔤 **Change font / font-size**
-- 🔍 **Search functionality** with regex support
+- 🔤 **Change font / font-size** ✔️
+- 🔍 **Search functionality** ✔️
 - 🔄 **Real-time tail mode** - follow files as they update (like `tail -f`)
 - 📄 **Multiple files opened simultaneously**
