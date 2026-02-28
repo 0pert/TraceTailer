@@ -15,7 +15,7 @@ from PyQt6.QtGui import (
 )
 import re
 
-class SearchBar(QWidget):
+class SearchAndSelect(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
