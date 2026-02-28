@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QSize, Qt, QTimer, QRegularExpression
+from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtWidgets import (
     QMainWindow,
     QStatusBar,
@@ -6,35 +6,35 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
-    QLineEdit,
-    QPushButton,
-    QLabel,
-    QTextEdit,
 )
 from PyQt6.QtGui import (
     QAction,
     QFont,
-    QTextDocument,
-    QTextCursor,
-    QTextCharFormat,
     QColor,
     QPalette,
 )
 from pathlib import Path
-import re
+import os
 
 from src.ttail.highlighter import HighLighter
 from src.ttail.toolbar import ToolBar
 from src.ttail.dialog_windows import AboutDialog, SettingsDialog
 from src.ttail.app_config import AppConfig
+from src.ttail.file_watcher import FileWatcher
+from src.ttail.search_selection import SearchAndSelect
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.filename = ""
+        self.file_path = None
         self.is_loading = False
+        self.current_file_size = 0
+        self.tail_mode = False
+        self.auto_scroll = True
+
+        self.searchbar_visible = False
+    
 
         self.settings = AppConfig()
 
@@ -56,6 +56,8 @@ class MainWindow(QMainWindow):
         # Top menu
         self.menu = self.menuBar()
         file_menu = self.menu.addMenu("&File")
+        view_menu = self.menuBar().addMenu("View")
+        help_menu = self.menu.addMenu("&Help")
 
         button_action = QAction("📃 New", self)
         button_action.setStatusTip("Create new file")
@@ -87,8 +89,6 @@ class MainWindow(QMainWindow):
         button_action.triggered.connect(self.show_settings)
         file_menu.addAction(button_action)
 
-        help_menu = self.menu.addMenu("&Help")
-
         # button_action = QAction("❔ Help", self)
         # button_action.triggered.connect(self.help)
         # help_menu.addAction(button_action)
@@ -113,41 +113,7 @@ class MainWindow(QMainWindow):
         self.update_info()
 
         # -- Search field (hidden by defalut) --------------------------------
-        search_layout = QHBoxLayout()
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search...")
-        self.search_edit.returnPressed.connect(self.quick_find_next)
-        self.search_edit.textChanged.connect(self.highlight_all_matches)
-
-        find_next_btn = QPushButton("Next")
-        find_next_btn.clicked.connect(self.quick_find_next)
-
-        find_prev_btn = QPushButton("Previous")
-        find_prev_btn.clicked.connect(self.quick_find_prev)
-
-        close_search_btn = QPushButton("✕")
-        close_search_btn.setMaximumWidth(30)
-        close_search_btn.clicked.connect(self.hide_search_bar)
-
-        search_layout.addWidget(QLabel("Find:"))
-        search_layout.addWidget(self.search_edit)
-        search_layout.addWidget(find_prev_btn)
-        search_layout.addWidget(find_next_btn)
-        search_layout.addWidget(close_search_btn)
-
-        self.search_widget = QWidget()
-        self.search_widget.setObjectName("search_widget")
-        self.search_widget.setStyleSheet("""
-    QWidget#search_widget {
-        color: #ffffff;
-        background-color: #242424;
-        border-radius: 15%;
-    }
-""")
-        # self.search_widget.setStyleSheet("color: #ffffff; background-color: #1b1b1b; border-radius: 15%;")
-        self.search_widget.setLayout(search_layout)
-        self.search_widget.hide()
-
+        self.search_widget = SearchAndSelect(self)
         layout.addWidget(self.search_widget)
 
         layout.addWidget(self.content)
@@ -155,183 +121,45 @@ class MainWindow(QMainWindow):
 
         find_action = QAction("Find", self)
         find_action.setShortcut("Ctrl+F")
-        find_action.triggered.connect(self.show_search_bar)
+        find_action.triggered.connect(self.search_widget.show_search_bar)
         self.addAction(find_action)
 
         find_hide_action = QAction("Hide search", self)
         find_hide_action.setShortcut("ESCAPE")
-        find_hide_action.triggered.connect(self.hide_search_bar)
+        find_hide_action.triggered.connect(self.search_widget.hide_search_bar)
         self.addAction(find_hide_action)
 
-        self.content.selectionChanged.connect(self.on_selection_changed)
+        self.content.selectionChanged.connect(self.search_widget.on_selection_changed)
 
-        self.searchbar_visible = False
-        self.search_highlights = []
-        self.current_search_text = ""
+        
 
-    # ------------------------------------------------------------------------
-    # -- Search functions ----------------------------------------------------
-    # ------------------------------------------------------------------------
-    def show_search_bar(self):
-        self.search_widget.show()
-        self.search_edit.setFocus()
-        self.search_edit.selectAll()
-        self.highlight_all_matches(self.current_search_text)
-        self.searchbar_visible = True
+        # -- Tail mode -------------------------------------------------------
+        # Tail mode action
+        self.file_watcher = FileWatcher(self)
+        self.tail_action = QAction("Tail File", self)
+        self.tail_action.setShortcut("F5")
+        self.tail_action.setCheckable(True)
+        self.tail_action.toggled.connect(self.file_watcher.toggle_tail_mode)
 
-    def hide_search_bar(self):
-        self.search_widget.hide()
-        self.content.setFocus()
-        self.clear_highlights()
-        self.searchbar_visible = False
+        # Auto-scroll action
+        self.auto_scroll_action = QAction("Auto Scroll", self)
+        self.auto_scroll_action.setCheckable(True)
+        self.auto_scroll_action.setChecked(True)
+        self.auto_scroll_action.toggled.connect(self.file_watcher.toggle_auto_scroll)
 
-    def quick_find_next(self):
-        search_text = self.search_edit.text()
-        if search_text:
-            cursor = self.content.textCursor()
-            found = self.content.find(search_text)
-            if not found:
-                # Wrap around
-                cursor.movePosition(QTextCursor.MoveOperation.Start)
-                self.content.setTextCursor(cursor)
-                self.content.find(search_text)
+        view_menu.addAction(self.tail_action)
+        view_menu.addAction(self.auto_scroll_action)
 
-    def quick_find_prev(self):
-        search_text = self.search_edit.text()
-        if search_text:
-            cursor = self.content.textCursor()
-            found = self.content.find(search_text, QTextDocument.FindFlag.FindBackward)
-            if not found:
-                # Wrap around
-                cursor.movePosition(QTextCursor.MoveOperation.End)
-                self.content.setTextCursor(cursor)
-                self.content.find(search_text, QTextDocument.FindFlag.FindBackward)
+        # self.file_watcher = QFileSystemWatcher()
+        self.file_watcher.fileChanged.connect(self.file_watcher.on_file_changed)
 
-    def highlight_all_matches(self, text):
-        """Markera alla träffar av söktexten"""
-        self.clear_highlights()
+        self.update_timer = QTimer()
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self.file_watcher.update_file_content)
 
-        if not text or len(text) < 2:
-            self.current_search_text = ""
-            return
-
-        self.current_search_text = text
-
-        # -- Highlight format -------------------------------------
-        highlight_format = QTextCharFormat()
-        highlight_format.setBackground(QColor("#FFFF00"))
-        highlight_format.setForeground(QColor("#000000"))
-
-        # -- Find all -----------------------------------
-        cursor = QTextCursor(self.content.document())
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-
-        match_count = 0
-        while True:
-            cursor = self.content.document().find(text, cursor)
-            if cursor.isNull():
-                break
-
-            selection = QTextEdit.ExtraSelection()
-            selection.cursor = cursor
-            selection.format = highlight_format
-            self.search_highlights.append(selection)
-            match_count += 1
-
-        # Apply highlights
-        self.content.setExtraSelections(self.search_highlights)
-
-    def clear_highlights(self):
-        """Clear all highlights"""
-        self.search_highlights.clear()
-        self.content.setExtraSelections([])
-        # self.current_search_text = ""
-
-    # ------------------------------------------------------------------------
-    # -- Selection functions ----------------------------------------------------
-    # ------------------------------------------------------------------------
-    def on_selection_changed(self):
-        """When user select a word"""
-
-        # Not when search is active #
-        if self.searchbar_visible:
-            return
-
-        cursor = self.content.textCursor()
-        selected_text = cursor.selectedText()
-
-        # Highlight relevant word
-        if selected_text and len(selected_text.strip()) >= 2:
-            # Check selected text
-            if self.is_valid_word(selected_text):
-                self.highlight_selected_word(selected_text)
-            else:
-                self.clear_highlights()
-        else:
-            self.clear_highlights()
-
-    def is_valid_word(self, text):
-        """Check if selection is a valid word highlight"""
-        if text.isspace():
-            return False
-
-        # Accept word with characters, numbers and underscore
-        return bool(re.match(r"^[\w\-\.]+$", text))
-
-    def highlight_selected_word(self, word):
-        """Highlight allmatching words"""
-        self.search_highlights.clear()
-
-        # Lighter highlighting for non active matchning
-        highlight_format = QTextCharFormat()
-        highlight_format.setBackground(QColor("#F84E4E"))
-        highlight_format.setForeground(QColor("#F8F8F8"))
-
-        # Stronger highlighting for active marking
-        current_format = QTextCharFormat()
-        current_format.setBackground(QColor("#FF0000"))
-        current_format.setForeground(QColor("#F8F8F8"))
-
-        # Save current cursor
-        original_cursor = self.content.textCursor()
-        original_start = original_cursor.selectionStart()
-        original_end = original_cursor.selectionEnd()
-
-        # Regex for whole words only
-        escaped_word = re.escape(word)
-        pattern_str = r"\b" + escaped_word + r"\b"
-
-        # case-insensitive QRegularExpression
-        pattern = QRegularExpression(
-            pattern_str, QRegularExpression.PatternOption.CaseInsensitiveOption
+        self.content.verticalScrollBar().valueChanged.connect(
+            self.file_watcher.on_scroll
         )
-
-        # Find all matchnings (case-sensitive)
-        cursor = QTextCursor(self.content.document())
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-
-        while True:
-            cursor = self.content.document().find(
-                pattern, cursor, QTextDocument.FindFlag.FindCaseSensitively
-            )
-            if cursor.isNull():
-                break
-
-            selection = QTextEdit.ExtraSelection()
-            selection.cursor = cursor
-
-            # Use stronger color for active selection
-            if (
-                cursor.selectionStart() == original_start
-                and cursor.selectionEnd() == original_end
-            ):
-                selection.format = current_format
-            else:
-                selection.format = highlight_format
-
-            self.search_highlights.append(selection)
-
-        self.content.setExtraSelections(self.search_highlights)
 
     # ------------------------------------------------------------------------
     # -- Font / Style settings -----------------------------------------------
@@ -371,21 +199,25 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------------
     def new_file(self):
         self.content.setPlainText("")
-        self.filename = ""
+        self.file_path = ""
 
     def open_file(self):
-        filename, filter = QFileDialog.getOpenFileName(
+        if self.file_path:
+            self.file_watcher.removePath(self.file_path)
+
+        file_path, filter = QFileDialog.getOpenFileName(
             parent=None,
             caption="Open File",
             directory=self.settings.FILE_DIALOG_DIR,
             filter=self.settings.FILTER,
         )
-        if filename:
-            self.filename = filename
+        if file_path:
+            self.file_path = file_path
+            self.current_file_size = os.path.getsize(self.file_path)
             self.is_loading = True
             self.highlighter.setDocument(None)
             self.statusBar().showMessage("Loading file......")
-            with open(Path(self.filename), "r", encoding="UTF-8") as f:
+            with open(Path(self.file_path), "r", encoding="UTF-8") as f:
                 data = f.read()
 
             self.content.setPlainText(data)
@@ -394,22 +226,22 @@ class MainWindow(QMainWindow):
             self.update_info()
 
     def save_file(self):
-        if self.filename:
+        if self.file_path:
             data = self.content.toPlainText()
-            with open(self.filename, "w", encoding="UTF-8") as f:
+            with open(self.file_path, "w", encoding="UTF-8") as f:
                 f.write(data)
         else:
             self.save_as()
 
     def save_as(self):
-        filename, filter = QFileDialog.getSaveFileName(
+        file_path, filter = QFileDialog.getSaveFileName(
             parent=None,
             caption="Save File",
             directory=self.settings.FILE_DIALOG_DIR,
             filter=self.settings.FILTER,
         )
-        if filename:
-            with open(Path(filename), "w", encoding="UTF-8") as f:
+        if file_path:
+            with open(Path(file_path), "w", encoding="UTF-8") as f:
                 f.write(self.content.toPlainText())
 
     # ------------------------------------------------------------------------
@@ -455,5 +287,5 @@ class MainWindow(QMainWindow):
         column = cursor_position.columnNumber() + 1
         total_lines = self.content.document().blockCount()
 
-        info = f"File: {self.filename}\nRow: {line}/{total_lines} | Column: {column}"
+        info = f"File: {self.file_path}\nRow: {line}/{total_lines} | Column: {column}"
         self.toolbar.info.setText(info)
