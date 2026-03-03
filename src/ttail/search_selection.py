@@ -12,8 +12,10 @@ from PyQt6.QtGui import (
     QTextCursor,
     QTextCharFormat,
     QColor,
+    QAction,
 )
 import re
+
 
 class SearchAndSelect(QWidget):
     def __init__(self, parent=None):
@@ -53,9 +55,22 @@ class SearchAndSelect(QWidget):
         border-radius: 15%;
     }
 """)
+
+        find_action = QAction("Find", self)
+        find_action.setShortcut("Ctrl+F")
+        find_action.triggered.connect(self.show_search_bar)
+        self.parent.addAction(find_action)
+
+        find_hide_action = QAction("Hide search", self)
+        find_hide_action.setShortcut("ESCAPE")
+        find_hide_action.triggered.connect(self.hide_search_bar)
+        self.parent.addAction(find_hide_action)
+
+        self.parent.content.selectionChanged.connect(self.on_selection_changed)
+
         self.setLayout(self.layout)
         self.hide()
-    
+
     def show_search_bar(self):
         self.show()
         self.search_edit.setFocus()
@@ -84,15 +99,19 @@ class SearchAndSelect(QWidget):
         search_text = self.search_edit.text()
         if search_text:
             cursor = self.parent.content.textCursor()
-            found = self.parent.content.find(search_text, QTextDocument.FindFlag.FindBackward)
+            found = self.parent.content.find(
+                search_text, QTextDocument.FindFlag.FindBackward
+            )
             if not found:
                 # Wrap around
                 cursor.movePosition(QTextCursor.MoveOperation.End)
                 self.parent.content.setTextCursor(cursor)
-                self.parent.content.find(search_text, QTextDocument.FindFlag.FindBackward)
+                self.parent.content.find(
+                    search_text, QTextDocument.FindFlag.FindBackward
+                )
 
     def highlight_all_matches(self, text):
-        """Markera alla träffar av söktexten"""
+        """Mark all hits from search"""
         self.clear_highlights()
 
         if not text or len(text) < 2:

@@ -1,12 +1,37 @@
-from PyQt6.QtCore import QSize, Qt, QTimer, QRegularExpression, QFileSystemWatcher
+from PyQt6.QtCore import QTimer, QFileSystemWatcher
+from PyQt6.QtGui import QAction
 import os
-import sys
+
 
 class FileWatcher(QFileSystemWatcher):
     def __init__(self, parent=None):
         super().__init__(parent)
-
         self.parent = parent
+
+        self.tail_action = QAction("🖥️ Tail Local File", self)
+        self.tail_action.setEnabled(False)
+        self.tail_action.setShortcut("F5")
+        self.tail_action.setCheckable(True)
+        self.tail_action.toggled.connect(self.toggle_tail_mode)
+
+        # Auto-scroll action
+        self.auto_scroll_action = QAction("Auto Scroll", self)
+        self.auto_scroll_action.setEnabled(False)
+        self.auto_scroll_action.setCheckable(True)
+        self.auto_scroll_action.setChecked(True)
+        self.auto_scroll_action.toggled.connect(self.toggle_auto_scroll)
+
+        self.parent.view_menu.addAction(self.tail_action)
+        self.parent.view_menu.addAction(self.auto_scroll_action)
+
+        # self.file_watcher = QFileSystemWatcher()
+        self.fileChanged.connect(self.on_file_changed)
+
+        self.update_timer = QTimer()
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self.update_file_content)
+
+        self.parent.content.verticalScrollBar().valueChanged.connect(self.on_scroll)
 
     def toggle_tail_mode(self, checked):
         """Activate/inactivate tail mode"""
@@ -16,12 +41,12 @@ class FileWatcher(QFileSystemWatcher):
             self.parent.file_watcher.addPath(self.parent.file_path)
             self.scroll_to_bottom()
             self.parent.statusBar().showMessage("📡 Tailing File...")
-            self.parent.tail_action.setText("Tail File ✓")
+            self.tail_action.setText("🖥️ Tail Local File ✓")
         else:
             if self.parent.file_path:
                 self.parent.file_watcher.removePath(self.parent.file_path)
             self.parent.statusBar().showMessage("Ready")
-            self.parent.tail_action.setText("Tail File")
+            self.tail_action.setText("🖥️ Tail Local File")
 
     def toggle_auto_scroll(self, checked):
         """Toggle auto-scroll"""
@@ -49,8 +74,8 @@ class FileWatcher(QFileSystemWatcher):
 
     def on_file_changed(self, path):
         # Timer to avoid to many updates
-        if not self.parent.update_timer.isActive():
-            self.parent.update_timer.start(100)  # 100ms delay
+        if not self.update_timer.isActive():
+            self.update_timer.start(100)  # 100ms delay
 
     def scroll_to_bottom(self):
         scrollbar = self.parent.content.verticalScrollBar()
@@ -65,7 +90,9 @@ class FileWatcher(QFileSystemWatcher):
             new_size = os.path.getsize(self.parent.file_path)
 
             if new_size > self.parent.current_file_size:
-                with open(self.parent.file_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(
+                    self.parent.file_path, "r", encoding="utf-8", errors="replace"
+                ) as f:
                     f.seek(self.parent.current_file_size)
                     new_content = f.read()
 
