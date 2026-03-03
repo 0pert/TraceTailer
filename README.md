@@ -2,7 +2,7 @@
 
 <img src="img/TraceTailer_icon.ico" width="150" height="150">
 
-A powerful desktop application for viewing trace/log files with customizable syntax highlighting.
+A powerful desktop application for viewing trace/log files with customizable syntax highlighting. With Tail-Mode for local and remote files.
 
 <img src="img/screenshot.png" width="800" height="400">
 
@@ -54,4 +54,5 @@ A powerful desktop application for viewing trace/log files with customizable syn
 
 ## Future features
 
+- 🗝️ **SSH Key**
 - 📄 **Multiple files opened simultaneously**
