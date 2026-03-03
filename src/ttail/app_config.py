@@ -57,3 +57,10 @@ class AppConfig:
             base_path = os.path.abspath(".")
 
         return os.path.join(base_path, relative_path)
+
+    def save_last_ssh(self, config):
+        del config["password"]
+        self.settings.setValue("last-ssh", config)
+
+    def load_last_ssh(self):
+        return self.settings.value("last-ssh", None)
