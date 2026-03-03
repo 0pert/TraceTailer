@@ -9,10 +9,15 @@ A powerful desktop application for viewing trace/log files with customizable syn
 ## Features
 
 - 📁 **Open and view** large log and trace files
+- 🔤 **Persistent settings** change font / font-size / color for text area
+- 🔍 **Search / selection** search with Ctrl+F. Selection marks matching words
 - 🎨 **Customizable syntax highlighting** with regex patterns
 - 👤 **Multiple profiles** - create and switch between different highlighting configurations
 - 🎯 **Pattern matching** for XML tags, timestamps, GUIDs, error messages, and more
 - 💾 **Profile management** - save, edit, and share your highlighting profiles
+- 🔄 **Real-time tail mode** - follow local files as they update
+- 📡 **Tail remote file** - follow remote files as they update via SSH with `tail -f`
+- 📡 **Read file from remote server** - Get file content from remote server via `SFTP`
 
 ## Example profile structure
 
@@ -49,7 +54,4 @@ A powerful desktop application for viewing trace/log files with customizable syn
 
 ## Future features
 
-- 🔤 **Change font / font-size** ✔️
-- 🔍 **Search functionality** ✔️
-- 🔄 **Real-time tail mode** - follow files as they update (like `tail -f`)
 - 📄 **Multiple files opened simultaneously**

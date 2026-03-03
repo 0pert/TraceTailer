@@ -25,8 +25,9 @@ from src.ttail.app_config import AppConfig
 
 
 class ProfileEditor(QDialog):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
         self.setWindowTitle("Profile Editor")
         self.setMinimumSize(800, 600)
 
@@ -77,11 +78,17 @@ class ProfileEditor(QDialog):
         left_layout.addLayout(list_buttons)
 
         settings = AppConfig()
-        profile_info = QLabel(f"Profiles stored: <a href='file:///{settings.profile_file}'>{settings.profile_file}</a>")
-        profile_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        profile_info.linkActivated.connect(lambda: QDesktopServices.openUrl(
-            QUrl.fromLocalFile(os.path.dirname(settings.profile_file))
-        ))
+        profile_info = QLabel(
+            f"Profiles stored: <a href='file:///{settings.profile_file}'>{settings.profile_file}</a>"
+        )
+        profile_info.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextBrowserInteraction
+        )
+        profile_info.linkActivated.connect(
+            lambda: QDesktopServices.openUrl(
+                QUrl.fromLocalFile(os.path.dirname(settings.profile_file))
+            )
+        )
         left_layout.addWidget(profile_info)
 
         main_layout.addLayout(left_layout, 1)
@@ -133,6 +140,8 @@ class ProfileEditor(QDialog):
         self.on_profile_changed(self.profile_list[0])
         self.setLayout(layout)
 
+        self.profile_dropdown.setCurrentText(self.parent.selected_profile)
+
     def read_profiles(self):
         self.profile_dropdown.clear()
         self.profiles = Profiles()
@@ -161,6 +170,7 @@ class ProfileEditor(QDialog):
 
     def save_all(self):
         self.profiles.save_profiles()
+        self.parent.parent.toolbar.read_profiles()
         QMessageBox.information(self, "Saved", "Profile saved successfully!")
 
     def on_profile_changed(self, profile_name):
@@ -227,6 +237,7 @@ class ProfileEditor(QDialog):
             self.profiles.save_profiles()
             self.read_profiles()
             self.profile_dropdown.setCurrentText(name)
+            self.add_new_pattern()
 
     def delete_current_profile(self):
         if not self.current_profile:

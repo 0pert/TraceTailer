@@ -1,52 +1,63 @@
-from PyQt6.QtCore import QSize, Qt, QTimer, QRegularExpression
+from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtWidgets import (
     QMainWindow,
+    QMessageBox,
     QStatusBar,
     QFileDialog,
     QPlainTextEdit,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
-    QLineEdit,
-    QPushButton,
-    QLabel,
-    QTextEdit,
 )
 from PyQt6.QtGui import (
     QAction,
     QFont,
-    QTextDocument,
-    QTextCursor,
-    QTextCharFormat,
     QColor,
     QPalette,
 )
 from pathlib import Path
-import re
+import os
 
 from src.ttail.highlighter import HighLighter
+from src.ttail.text_content import TextContent
 from src.ttail.toolbar import ToolBar
 from src.ttail.dialog_windows import AboutDialog, SettingsDialog
 from src.ttail.app_config import AppConfig
+from src.ttail.file_watcher import FileWatcher
+from src.ttail.search_selection import SearchAndSelect
+from src.ssh.ssh_dialog import SSHConnectionDialog
+from src.ssh.ssh_tail import SSHTailThread
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.filename = ""
-        self.is_loading = False
-
-        self.settings = AppConfig()
 
         self.setWindowTitle("TraceTailer")
         self.setMinimumSize(QSize(1200, 600))
+
+        self.file_path = None
+        self.is_loading = False
+        self.current_file_size = 0
+        self.tail_mode = False
+        self.auto_scroll = True
+
+        self.file_changed = True
+
+        self.ssh_thread = None
+        self.remote_file_path = None
+        self.host = None
+
+        self.searchbar_visible = False
+
+        self.settings = AppConfig()
 
         # -- Main Layout -------------------------------------------------
         central_widget = QWidget()
         layout = QVBoxLayout(central_widget)
 
-        self.content = QPlainTextEdit()
-        self.content.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.content = TextContent()
+        self.content.document().setModified(False)
+        self.content.document().modificationChanged.connect(self.on_text_changed)
 
         self.highlighter = HighLighter(self.content.document())
 
@@ -56,42 +67,38 @@ class MainWindow(QMainWindow):
         # Top menu
         self.menu = self.menuBar()
         file_menu = self.menu.addMenu("&File")
+        edit_menu = self.menu.addMenu("&Edit")
+        self.view_menu = self.menuBar().addMenu("&View")
+        self.ssh_menu = self.menuBar().addMenu("&SSH")
+        help_menu = self.menu.addMenu("&Help")
 
         button_action = QAction("📃 New", self)
-        button_action.setStatusTip("Create new file")
         button_action.setShortcut("Ctrl+N")
         button_action.triggered.connect(self.new_file)
         file_menu.addAction(button_action)
 
         button_action = QAction("📂 Open", self)
-        button_action.setStatusTip("Open existing file...")
         button_action.setShortcut("Ctrl+O")
         button_action.triggered.connect(self.open_file)
         file_menu.addAction(button_action)
 
         button_action = QAction("💾 Save", self)
-        button_action.setStatusTip("Save file")
         button_action.setShortcut("Ctrl+S")
         button_action.triggered.connect(self.save_file)
         file_menu.addAction(button_action)
 
         button_action = QAction("💾 Save as", self)
-        button_action.setStatusTip("Save as new file")
         button_action.setShortcut("Ctrl+Shift+S")
         button_action.triggered.connect(self.save_as)
         file_menu.addAction(button_action)
 
+        file_menu.addSeparator()
         button_action = QAction("⚙️ Settings", self)
-        # button_action.setStatusTip("Save as new file")
-        # button_action.setShortcut("Ctrl+Shift+S")
         button_action.triggered.connect(self.show_settings)
         file_menu.addAction(button_action)
 
-        help_menu = self.menu.addMenu("&Help")
-
-        # button_action = QAction("❔ Help", self)
-        # button_action.triggered.connect(self.help)
-        # help_menu.addAction(button_action)
+        for action in self.content.get_edit_actions(True):
+            edit_menu.addAction(action)
 
         button_action = QAction("ℹ️ About", self)
         button_action.triggered.connect(self.about)
@@ -99,7 +106,7 @@ class MainWindow(QMainWindow):
 
         self.setStatusBar(QStatusBar(self))
 
-        self.toolbar = ToolBar()
+        self.toolbar = ToolBar(self)
         self.toolbar.open_btn.clicked.connect(self.open_file)
         self.toolbar.profile_changed.connect(self.on_profile_changed)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.toolbar)
@@ -112,226 +119,86 @@ class MainWindow(QMainWindow):
         self.content.cursorPositionChanged.connect(self.update_info)
         self.update_info()
 
-        # -- Search field (hidden by defalut) --------------------------------
-        search_layout = QHBoxLayout()
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search...")
-        self.search_edit.returnPressed.connect(self.quick_find_next)
-        self.search_edit.textChanged.connect(self.highlight_all_matches)
-
-        find_next_btn = QPushButton("Next")
-        find_next_btn.clicked.connect(self.quick_find_next)
-
-        find_prev_btn = QPushButton("Previous")
-        find_prev_btn.clicked.connect(self.quick_find_prev)
-
-        close_search_btn = QPushButton("✕")
-        close_search_btn.setMaximumWidth(30)
-        close_search_btn.clicked.connect(self.hide_search_bar)
-
-        search_layout.addWidget(QLabel("Find:"))
-        search_layout.addWidget(self.search_edit)
-        search_layout.addWidget(find_prev_btn)
-        search_layout.addWidget(find_next_btn)
-        search_layout.addWidget(close_search_btn)
-
-        self.search_widget = QWidget()
-        self.search_widget.setObjectName("search_widget")
-        self.search_widget.setStyleSheet("""
-    QWidget#search_widget {
-        color: #ffffff;
-        background-color: #242424;
-        border-radius: 15%;
-    }
-""")
-        # self.search_widget.setStyleSheet("color: #ffffff; background-color: #1b1b1b; border-radius: 15%;")
-        self.search_widget.setLayout(search_layout)
-        self.search_widget.hide()
-
+        self.search_widget = SearchAndSelect(self)
         layout.addWidget(self.search_widget)
-
         layout.addWidget(self.content)
         self.setCentralWidget(central_widget)
 
-        find_action = QAction("Find", self)
-        find_action.setShortcut("Ctrl+F")
-        find_action.triggered.connect(self.show_search_bar)
-        self.addAction(find_action)
+        self.file_watcher = FileWatcher(self)
 
-        find_hide_action = QAction("Hide search", self)
-        find_hide_action.setShortcut("ESCAPE")
-        find_hide_action.triggered.connect(self.hide_search_bar)
-        self.addAction(find_hide_action)
+        ssh_start = QAction("🛜 Tail Remote File (SSH)", self)
+        ssh_start.triggered.connect(self.open_ssh_dialog)
+        self.ssh_menu.addAction(ssh_start)
+        self.ssh_stop = QAction("❌ Close connection", self.ssh_thread)
+        self.ssh_stop.setEnabled(False)
+        self.ssh_menu.addAction(self.ssh_stop)
+        self.ssh_menu.addSeparator()
+        self.sftp = QAction("📡 Read Remote File (SFTP)")
+        self.sftp.triggered.connect(lambda: self.open_ssh_dialog(True))
+        self.ssh_menu.addAction(self.sftp)
 
-        self.content.selectionChanged.connect(self.on_selection_changed)
+    def open_ssh_dialog(self, sftp=False):
+        """SSH config dialog"""
+        dialog = SSHConnectionDialog(self)
+        if dialog.exec():
+            config = dialog.get_config()
+            self.connect_ssh(
+                sftp,
+                config["host"],
+                config["username"],
+                config["password"],
+                config["remote_file"],
+                config.get("port", 22),
+            )
+            self.settings.save_last_ssh(config)
 
-        self.searchbar_visible = False
-        self.search_highlights = []
-        self.current_search_text = ""
+    def connect_ssh(self, sftp, host, username, password, remote_file, port=22):
+        """Connect and tail remote file or load remote file via sftp"""
+        # Stop thread
+        if self.ssh_thread and self.ssh_thread.isRunning():
+            self.ssh_thread.stop()
 
-    # ------------------------------------------------------------------------
-    # -- Search functions ----------------------------------------------------
-    # ------------------------------------------------------------------------
-    def show_search_bar(self):
-        self.search_widget.show()
-        self.search_edit.setFocus()
-        self.search_edit.selectAll()
-        self.highlight_all_matches(self.current_search_text)
-        self.searchbar_visible = True
-
-    def hide_search_bar(self):
-        self.search_widget.hide()
-        self.content.setFocus()
-        self.clear_highlights()
-        self.searchbar_visible = False
-
-    def quick_find_next(self):
-        search_text = self.search_edit.text()
-        if search_text:
-            cursor = self.content.textCursor()
-            found = self.content.find(search_text)
-            if not found:
-                # Wrap around
-                cursor.movePosition(QTextCursor.MoveOperation.Start)
-                self.content.setTextCursor(cursor)
-                self.content.find(search_text)
-
-    def quick_find_prev(self):
-        search_text = self.search_edit.text()
-        if search_text:
-            cursor = self.content.textCursor()
-            found = self.content.find(search_text, QTextDocument.FindFlag.FindBackward)
-            if not found:
-                # Wrap around
-                cursor.movePosition(QTextCursor.MoveOperation.End)
-                self.content.setTextCursor(cursor)
-                self.content.find(search_text, QTextDocument.FindFlag.FindBackward)
-
-    def highlight_all_matches(self, text):
-        """Markera alla träffar av söktexten"""
-        self.clear_highlights()
-
-        if not text or len(text) < 2:
-            self.current_search_text = ""
-            return
-
-        self.current_search_text = text
-
-        # -- Highlight format -------------------------------------
-        highlight_format = QTextCharFormat()
-        highlight_format.setBackground(QColor("#FFFF00"))
-        highlight_format.setForeground(QColor("#000000"))
-
-        # -- Find all -----------------------------------
-        cursor = QTextCursor(self.content.document())
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-
-        match_count = 0
-        while True:
-            cursor = self.content.document().find(text, cursor)
-            if cursor.isNull():
-                break
-
-            selection = QTextEdit.ExtraSelection()
-            selection.cursor = cursor
-            selection.format = highlight_format
-            self.search_highlights.append(selection)
-            match_count += 1
-
-        # Apply highlights
-        self.content.setExtraSelections(self.search_highlights)
-
-    def clear_highlights(self):
-        """Clear all highlights"""
-        self.search_highlights.clear()
-        self.content.setExtraSelections([])
-        # self.current_search_text = ""
-
-    # ------------------------------------------------------------------------
-    # -- Selection functions ----------------------------------------------------
-    # ------------------------------------------------------------------------
-    def on_selection_changed(self):
-        """When user select a word"""
-
-        # Not when search is active #
-        if self.searchbar_visible:
-            return
-
-        cursor = self.content.textCursor()
-        selected_text = cursor.selectedText()
-
-        # Highlight relevant word
-        if selected_text and len(selected_text.strip()) >= 2:
-            # Check selected text
-            if self.is_valid_word(selected_text):
-                self.highlight_selected_word(selected_text)
-            else:
-                self.clear_highlights()
-        else:
-            self.clear_highlights()
-
-    def is_valid_word(self, text):
-        """Check if selection is a valid word highlight"""
-        if text.isspace():
-            return False
-
-        # Accept word with characters, numbers and underscore
-        return bool(re.match(r"^[\w\-\.]+$", text))
-
-    def highlight_selected_word(self, word):
-        """Highlight allmatching words"""
-        self.search_highlights.clear()
-
-        # Lighter highlighting for non active matchning
-        highlight_format = QTextCharFormat()
-        highlight_format.setBackground(QColor("#F84E4E"))
-        highlight_format.setForeground(QColor("#F8F8F8"))
-
-        # Stronger highlighting for active marking
-        current_format = QTextCharFormat()
-        current_format.setBackground(QColor("#FF0000"))
-        current_format.setForeground(QColor("#F8F8F8"))
-
-        # Save current cursor
-        original_cursor = self.content.textCursor()
-        original_start = original_cursor.selectionStart()
-        original_end = original_cursor.selectionEnd()
-
-        # Regex for whole words only
-        escaped_word = re.escape(word)
-        pattern_str = r"\b" + escaped_word + r"\b"
-
-        # case-insensitive QRegularExpression
-        pattern = QRegularExpression(
-            pattern_str, QRegularExpression.PatternOption.CaseInsensitiveOption
+        # Start new thread
+        self.ssh_thread = SSHTailThread(
+            self, host, username, password, remote_file, port
         )
 
-        # Find all matchnings (case-sensitive)
-        cursor = QTextCursor(self.content.document())
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        if not sftp:
+            self.ssh_thread.new_content.connect(self.append_remote_content)
+            self.ssh_thread.error_occurred.connect(self.show_ssh_error)
+            self.ssh_thread.start()
 
-        while True:
-            cursor = self.content.document().find(
-                pattern, cursor, QTextDocument.FindFlag.FindCaseSensitively
-            )
-            if cursor.isNull():
-                break
+            self.statusBar().showMessage(f"📡 Following {remote_file} on {host}")
+            self.ssh_stop.triggered.connect(self.ssh_thread.stop)
+            self.ssh_stop.setEnabled(True)
 
-            selection = QTextEdit.ExtraSelection()
-            selection.cursor = cursor
+            self.file_watcher.tail_action.setEnabled(False)
+            self.file_watcher.auto_scroll_action.setEnabled(False)
 
-            # Use stronger color for active selection
-            if (
-                cursor.selectionStart() == original_start
-                and cursor.selectionEnd() == original_end
-            ):
-                selection.format = current_format
-            else:
-                selection.format = highlight_format
+        else:
+            data = self.ssh_thread.sftp()
+            self.content.setPlainText(data)
 
-            self.search_highlights.append(selection)
+        self.remote_file_path = remote_file
+        self.host = host
+        self.file_path = None
 
-        self.content.setExtraSelections(self.search_highlights)
+        self.update_info()
+
+    def append_remote_content(self, line):
+        """Add new row from remote file"""
+        cursor = self.content.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        cursor.insertText(line)
+
+        # Auto-scroll
+        scrollbar = self.content.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def show_ssh_error(self, error):
+        QMessageBox.critical(self, "SSH Error", f"Error: {error}")
+        self.statusBar().showMessage("SSH connection failed")
+        self.ssh_stop.setEnabled(False)
 
     # ------------------------------------------------------------------------
     # -- Font / Style settings -----------------------------------------------
@@ -371,46 +238,74 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------------
     def new_file(self):
         self.content.setPlainText("")
-        self.filename = ""
+        self.file_path = None
+        # self.file_changed = True
+        self.remote_file_path = None
+        self.file_watcher.tail_action.setEnabled(False)
+        self.file_watcher.auto_scroll_action.setEnabled(False)
+
+        self.update_info()
 
     def open_file(self):
-        filename, filter = QFileDialog.getOpenFileName(
+        if self.file_path:
+            self.file_watcher.removePath(self.file_path)
+
+        self.file_changed = False
+
+        file_path, filter = QFileDialog.getOpenFileName(
             parent=None,
             caption="Open File",
             directory=self.settings.FILE_DIALOG_DIR,
             filter=self.settings.FILTER,
         )
-        if filename:
-            self.filename = filename
+        if file_path:
+            self.file_path = file_path
+            self.remote_file_path = None
+            self.current_file_size = os.path.getsize(self.file_path)
             self.is_loading = True
+            self.file_watcher.tail_action.setEnabled(True)
+            self.file_watcher.auto_scroll_action.setEnabled(True)
             self.highlighter.setDocument(None)
-            self.statusBar().showMessage("Loading file......")
-            with open(Path(self.filename), "r", encoding="UTF-8") as f:
+            self.statusBar().showMessage("Loading file...")
+            with open(Path(self.file_path), "r", encoding="UTF-8") as f:
                 data = f.read()
 
+            # Make sure the content-window set to not modified
+            self.content.document().blockSignals(True)
             self.content.setPlainText(data)
+            self.content.document().setModified(False)
+            self.content.document().blockSignals(False)
+            self.file_changed = False
 
             QTimer.singleShot(100, self.reattach_highlighter)
+
             self.update_info()
 
     def save_file(self):
-        if self.filename:
+        if self.file_path:
             data = self.content.toPlainText()
-            with open(self.filename, "w", encoding="UTF-8") as f:
+            with open(self.file_path, "w", encoding="UTF-8") as f:
                 f.write(data)
+            self.file_changed = False
         else:
             self.save_as()
 
     def save_as(self):
-        filename, filter = QFileDialog.getSaveFileName(
+        file_path, filter = QFileDialog.getSaveFileName(
             parent=None,
             caption="Save File",
             directory=self.settings.FILE_DIALOG_DIR,
             filter=self.settings.FILTER,
         )
-        if filename:
-            with open(Path(filename), "w", encoding="UTF-8") as f:
+        if file_path:
+            with open(Path(file_path), "w", encoding="UTF-8") as f:
                 f.write(self.content.toPlainText())
+            self.file_changed = False
+            self.file_path = file_path
+
+    def on_text_changed(self, modified):
+        if modified:
+            self.file_changed = True
 
     # ------------------------------------------------------------------------
     # -- Highligtning functions ----------------------------------------------
@@ -431,7 +326,7 @@ class MainWindow(QMainWindow):
 
     def finish_rehighlight(self):
         self.highlighter.rehighlight()
-        self.statusBar().showMessage("Finished!", 1000)
+        self.statusBar().showMessage("Highlighting Updated!", 1000)
 
     def reattach_highlighter(self):
         """Reattach highlighter after opening file"""
@@ -455,5 +350,35 @@ class MainWindow(QMainWindow):
         column = cursor_position.columnNumber() + 1
         total_lines = self.content.document().blockCount()
 
-        info = f"File: {self.filename}\nRow: {line}/{total_lines} | Column: {column}"
+        if self.file_path:
+            file_info = self.file_path
+
+        elif self.remote_file_path:
+            file_info = f"{self.host}:{self.remote_file_path}"
+
+        else:
+            file_info = ""
+
+        info = f"File: {file_info}\nRow: {line}/{total_lines} | Column: {column}\nFile Saved: {not self.file_changed}"
         self.toolbar.info.setText(info)
+
+    def closeEvent(self, event):
+        """Event when program is shutting down"""
+        message = "Do you want to quit?"
+        if self.file_changed:
+            message = "You have unsaved changes. Do you want to quit without saving?"
+
+        reply = QMessageBox.question(
+            self,
+            "Close",
+            message,
+            QMessageBox.StandardButton.Close | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Close,
+        )
+
+        if reply == QMessageBox.StandardButton.Close:
+            if self.ssh_thread and self.ssh_thread.isRunning():
+                self.ssh_thread.stop()
+            event.accept()
+        else:
+            event.ignore()

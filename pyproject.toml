@@ -1,6 +1,6 @@
 [project]
 name = "ttail"
-version = "0.3.1"
+version = "0.4.1"
 author = "Oliver Broman"
 description = "Trace Tailer - Notepad highlighter"
 readme = "README.md"
@@ -9,5 +9,6 @@ packages = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "paramiko>=4.0.0",
     "pyqt6>=6.10.2",
 ]
