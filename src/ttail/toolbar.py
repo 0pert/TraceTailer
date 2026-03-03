@@ -19,9 +19,11 @@ from src.ttail.profile_editor import Profiles, ProfileEditor
 class ToolBar(QDockWidget):
     profile_changed = pyqtSignal(str)  # Signal for profile change
 
-    def __init__(self):
-        super().__init__("⚙️ ToolBar")
+    def __init__(self, parent=None):
+        super().__init__("⚙️ ToolBar", parent)
+        self.parent = parent
         self.resize(250, self.height())
+        self.selected_profile = None
 
         self.open_btn = QPushButton("📂Open")
         self.open_btn.setStatusTip("Open file")
@@ -35,7 +37,8 @@ class ToolBar(QDockWidget):
         self.profile_dropdown.currentTextChanged.connect(self.dropdown_choice)
 
         self.sidebar_list = QListWidget()
-        self.dropdown_choice("Default")
+        self.dropdown_choice()
+        
         self.sidebar_list.itemChanged.connect(self.rule_toggled)
 
         self.info = QLabel()
@@ -61,22 +64,32 @@ class ToolBar(QDockWidget):
         )
 
     def read_profiles(self):
+        self.profile_dropdown.blockSignals(True)
         self.profile_dropdown.clear()
         self.profiles = Profiles()
         self.profile_list = []
         for i, _ in self.profiles.profiles.items():
             self.profile_list.append(i)
         self.profile_dropdown.addItems(self.profile_list)
+        self.profile_dropdown.blockSignals(False)
 
     def open_edit_profiles(self):
-        dialog = ProfileEditor()
+        dialog = ProfileEditor(self)
+        # self.profile_dropdown.blockSignals(True)
         dialog.exec()
         self.read_profiles()
 
-    def dropdown_choice(self, text: str):
+        if self.selected_profile and self.selected_profile in self.profile_list:
+            self.profile_dropdown.setCurrentText(self.selected_profile)
+            self.dropdown_choice(self.selected_profile)
+        else:
+            self.dropdown_choice(self.profile_dropdown.currentText())
+
+    def dropdown_choice(self, text: str = None):
         self.sidebar_list.clear()
         if not text:
-            return
+            keys = list(self.profiles.profiles.keys())
+            text = keys[0]
         for rule in self.profiles.profiles[text]:
             item = QListWidgetItem(f"● {rule['name']}")
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
@@ -87,6 +100,7 @@ class ToolBar(QDockWidget):
             )
             item.setForeground(QColor(rule["color"]))
             self.sidebar_list.addItem(item)
+        self.selected_profile = text
 
         # Send signal if profile changing
         try:
