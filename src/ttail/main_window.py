@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QStatusBar,
     QFileDialog,
-    QPlainTextEdit,
     QWidget,
     QVBoxLayout,
 )

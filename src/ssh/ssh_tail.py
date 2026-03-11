@@ -1,3 +1,5 @@
+import re
+
 import paramiko
 from PyQt6.QtCore import QThread, pyqtSignal
 import time
@@ -66,11 +68,25 @@ class SSHTailThread(QThread):
             self.channel.send(f"tail -f {self.remote_file}\n")
 
             self.running = True
+            tail_started = False
+
+            ANSI_ESCAPE = re.compile(r'\x1b\[[^a-zA-Z]*[a-zA-Z]|\[\?2004[hl]')
 
             while self.running:
                 if self.channel.recv_ready():
                     data = self.channel.recv(4096).decode("utf-8", errors="replace")
-                    if data:
+                    data = ANSI_ESCAPE.sub("", data)
+                    
+                    if not tail_started:
+                        if f"tail -f {self.remote_file}" in data:
+                            _, _, data = data.partition(self.remote_file)
+                            data = data.split("\n", 1)[-1]
+                            tail_started = True
+                            # continue
+                        else:
+                            continue
+                    
+                    if data.strip():
                         self.new_content.emit(data)
                 else:
                     time.sleep(0.1)

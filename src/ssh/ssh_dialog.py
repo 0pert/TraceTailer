@@ -36,6 +36,7 @@ class SSHConnectionDialog(QDialog):
         # SSH Key (optional)
         self.use_key = QCheckBox("Use SSH Key")
         self.use_key.toggled.connect(self.toggle_key_auth)
+        self.use_key.setEnabled(False)
         layout.addRow("", self.use_key)
         
         self.key_path_edit = QLineEdit()
